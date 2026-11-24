@@ -3,3 +3,4 @@ is
 __pycache__
 .vscode
 users.db
+.pytest_cache
