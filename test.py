@@ -333,3 +333,117 @@ def test_wrongpass_changepassword():
              "new_password":"Test1234567"
         })
     assert response.status_code == 401
+@pytest.fixture
+def account_token():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    assert response.status_code == 201
+
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    return response.json()["access_token"]
+
+
+def test_delete_success(account_token):
+    response = client.request(
+        "DELETE", "/delete",
+        headers={"Authorization": f"Bearer {account_token}"},
+        json={"password": "Test123456"}
+    )
+    assert response.status_code == 200
+
+
+def test_delete_wrong_password(account_token):
+    response = client.request(
+        "DELETE", "/delete",
+        headers={"Authorization": f"Bearer {account_token}"},
+        json={"password": "WrongPassword"}
+    )
+    assert response.status_code == 401
+
+
+def test_delete_invalid_token():
+    response = client.request(
+        "DELETE", "/delete",
+        headers={"Authorization": "Bearer invalidtoken"},
+        json={"password": "Test123456"}
+    )
+    assert response.status_code == 401
+
+
+def test_delete_no_token():
+    response = client.request(
+        "DELETE", "/delete",
+        json={"password": "Test123456"}
+    )
+    assert response.status_code in (401, 403)
+
+
+def test_login_deleted_account(account_token):
+    response = client.request(
+        "DELETE", "/delete",
+        headers={"Authorization": f"Bearer {account_token}"},
+        json={"password": "Test123456"}
+    )
+    assert response.status_code == 200
+
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 401
+
+
+def test_deleted_account_token(account_token):
+    response = client.request(
+        "DELETE", "/delete",
+        headers={"Authorization": f"Bearer {account_token}"},
+        json={"password": "Test123456"}
+    )
+    assert response.status_code == 200
+
+    response = client.get("/me", headers={
+        "Authorization": f"Bearer {account_token}"
+    })
+    assert response.status_code == 404
+
+
+def test_deleted_id_not_reused(account_token):
+    old_id = main.verify_token(account_token)
+    assert old_id is not None
+
+    response = client.request(
+        "DELETE", "/delete",
+        headers={"Authorization": f"Bearer {account_token}"},
+        json={"password": "Test123456"}
+    )
+    assert response.status_code == 200
+
+    response = client.post("/register", json={
+        "username": "NEWUSER",
+        "email": "new@example.com",
+        "password": "Test123456"
+    })
+    assert response.status_code == 201
+
+    response = client.post("/login", json={
+        "username": "NEWUSER",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+
+    new_id = main.verify_token(response.json()["access_token"])
+
+    assert new_id is not None
+    assert new_id > old_id
+
+    response = client.get("/me", headers={
+        "Authorization": f"Bearer {account_token}"
+    })
+    assert response.status_code == 404
