@@ -5,7 +5,11 @@ from fastapi import FastAPI, HTTPException # type: ignore
 from pydantic import BaseModel,EmailStr # type: ignore # pyright: ignore[reportUndefinedVariable]
 from datetime import date, datetime, time, timedelta,UTC
 import jwt # pyright: ignore[reportMissingImports]
+import os
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer # pyright: ignore[reportMissingImports] # pyright: ignore[reportMissingImports]
+from dotenv import load_dotenv # pyright: ignore[reportMissingImports]
 
+load_dotenv()
 
 app = FastAPI()
 class RegisterRequest(BaseModel):
@@ -16,25 +20,18 @@ class LoginRequest(BaseModel):
     username: str
     password:str
 
-def get_token(self, expires=600):
+def get_token(id, expires=600):
     payload = {
-        'user_id': self.id,
-        'exp': datetime.now(UTC) + timedelta(seconds=expires),
-        'used': False
-
+        'user_id': id,
+        'exp': datetime.now(UTC)+timedelta(seconds=int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS"))),
     }
-    return jwt.encode(payload, "SECRET-KEY", algorithm="HS256")
+    return jwt.encode(payload, os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
 
-@staticmethod
 def verify_token(token):
     try:
-        payload = jwt.decode(token, "SECRET-KEY", algorithms=['HS256'])
-        if datetime.now(UTC) <= datetime.fromtimestamp(payload['exp'], UTC) and not payload['used']:
-            user_id = payload['user_id']
-            payload['used'] = True
-            return user_id
-        else:
-            return None
+        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        return payload["user_id"]
+
 
     except jwt.ExpiredSignatureError:
         return None
@@ -114,7 +111,7 @@ def login(user:LoginRequest):
     baglanti = baglan()
     try:
         cursor = baglanti.cursor()
-        cursor.execute("SELECT username,password_hash FROM users WHERE username = ?",(user.username,))
+        cursor.execute("SELECT username,password_hash,id FROM users WHERE username = ?",(user.username,))
         sonuc = cursor.fetchone()
         if(not user.username.strip()):
             raise HTTPException(status_code=400, detail="Kullanıcı adı boş olamaz")
@@ -125,7 +122,8 @@ def login(user:LoginRequest):
         elif not bcrypt.checkpw(user.password.encode("utf-8"), sonuc[1].encode("utf-8")):
             raise HTTPException(status_code=401, detail="Şifre yada Kullanıcı Adı Yanlış!")
         else:
-            return {"Mesaj": "Başarıyla Giriş Yapıldı"}
+            session_id=get_token(sonuc[2])
+            return {"Mesaj": "Başarıyla Giriş Yapıldı","access_token":session_id,"token_type":"bearer"}
         
         
 
