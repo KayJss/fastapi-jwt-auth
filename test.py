@@ -1,5 +1,5 @@
 import pytest # pyright: ignore[reportMissingImports]
-from fastapi.testclient import TestClient # pyright: ignore[reportMissingImports]
+from starlette.testclient import TestClient as TestClient # pyright: ignore[reportMissingImports]
 import main as main
 
 client = TestClient(main.app)
