@@ -156,3 +156,34 @@ def me(token:HTTPAuthorizationCredentials=Depends(security)):
     
     finally:
         baglanti.close()
+@app.put("/password",status_code=200)
+def change_password(passwords:ChangePasswordRequest,token:HTTPAuthorizationCredentials=Depends(security)):
+    baglanti = baglan()
+    try:
+        cursor = baglanti.cursor()
+        sonuc = verify_token(token.credentials)
+        if sonuc is None:
+                    raise HTTPException(status_code=401, detail="Token geçersiz veya oturum süresi dolmuş")
+        cursor.execute("SELECT password_hash FROM users WHERE id = ?",(sonuc,))
+        sonuc2 = cursor.fetchone()
+        if(sonuc2 is None):
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        elif len(passwords.old_password.encode("utf-8")) > 72:
+            raise HTTPException(status_code=400, detail="Şifre 72 Byte'dan Büyük olamaz")
+        elif not bcrypt.checkpw(passwords.old_password.encode("utf-8"), sonuc2[0].encode("utf-8")):
+            raise HTTPException(status_code=401, detail="Mevcut şifreniz yanlış")
+        else:
+            cursor.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+                        (hashlama(passwords.new_password), sonuc)
+                    )
+            baglanti.commit()
+            return {"Mesaj": "Başarıyla Şifre Değiştirildi"}
+
+    finally:
+        baglanti.close()
+
+        
+
+
+
