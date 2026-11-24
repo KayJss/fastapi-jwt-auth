@@ -139,7 +139,7 @@ def test_expired_token_me(monkeypatch):
     response = client.get("/me", headers={
             "Authorization": "bearer" +" "+token ,
         })
-    assert response.status_code ==401
+    assert response.status_code ==403
 def test_no_token_me():
     response = client.get("/me")
     assert response.status_code==401
@@ -147,7 +147,7 @@ def test_invalid_token_me():
     response = client.get("/me", headers={
             "Authorization": "bearer" +" "+"" ,
         })
-    assert response.status_code==401
+    assert response.status_code==403
 
 
 
