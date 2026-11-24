@@ -24,6 +24,8 @@ class LoginRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password:str
     new_password:str
+class AccountDeleteRequest(BaseModel):
+    password:str
 
 def get_token(id, expires=600):
     payload = {
@@ -73,7 +75,7 @@ def tablo_olustur():
         cursor = baglanti.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY NOT NULL,
+                id INTEGER PRIMARY KEY  AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
@@ -183,7 +185,32 @@ def change_password(passwords:ChangePasswordRequest,token:HTTPAuthorizationCrede
     finally:
         baglanti.close()
 
-        
+@app.delete("/delete",status_code=200)
+def user_delete(passwords:AccountDeleteRequest,token:HTTPAuthorizationCredentials=Depends(security)):
+    baglanti = baglan()
+    try:
+        cursor = baglanti.cursor()
+        sonuc = verify_token(token.credentials)
+        if sonuc is None:
+                    raise HTTPException(status_code=401, detail="Token geçersiz veya oturum süresi dolmuş")
+        cursor.execute("SELECT password_hash FROM users WHERE id = ?",(sonuc,))
+        sonuc2 = cursor.fetchone()
+        if(sonuc2 is None):
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        elif len(passwords.password.encode("utf-8")) > 72:
+                    raise HTTPException(status_code=400, detail="Şifre 72 Byte'dan Büyük olamaz")
+        elif not bcrypt.checkpw(passwords.password.encode("utf-8"), sonuc2[0].encode("utf-8")):
+            raise HTTPException(status_code=401, detail="Mevcut şifreniz yanlış")
+        else:
+            cursor.execute(
+            "DELETE FROM users WHERE id = ?",
+                        (sonuc,)
+                    )
+            baglanti.commit()
+            return {"Mesaj": "Başarıyla Hesap Silindi"}
+
+    finally:
+        baglanti.close()        
 
 
 

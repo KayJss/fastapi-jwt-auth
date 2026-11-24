@@ -142,18 +142,194 @@ def test_expired_token_me(monkeypatch):
     assert response.status_code ==401
 def test_no_token_me():
     response = client.get("/me")
-    assert response.status_code==403 or response.status_code==401
+    assert response.status_code == 401 or response.status_code == 403
 def test_invalid_token_me():
     response = client.get("/me", headers={
-            "Authorization": "bearer" +" "+"" ,
+            "Authorization": "bearer" +" "+"ffff" ,
         })
-    assert response.status_code==403 or response.status_code==401
+    assert response.status_code == 401 or response.status_code == 403
 
 
+def test_sucsess_changepassword():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    password = "Test123456"
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    response = client.put("/password", headers={
+            "Authorization": "bearer" +" "+token ,
+        },json={
+             "old_password":password,
+             "new_password":"Test1234567"
+        })
+    assert response.status_code == 200
+
+def test_notoken_changepassword():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    response = client.put("/password",json={
+             "old_password":"Test1234567",
+             "new_password":"Test1234567"
+        })
+    assert response.status_code == 401 or response.status_code == 403
 
 
+def test_expired_changepassword(monkeypatch):
+    monkeypatch.setenv("ACCESS_TOKEN_EXPIRE_SECONDS","-1") 
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    password = "Test123456"
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    response = client.put("/password", headers={
+            "Authorization": "bearer" +" "+token ,
+        },json={
+             "old_password":password,
+             "new_password":"Test1234567"
+        })
+    assert response.status_code == 401 or response.status_code == 403
+def test_wrongtoken_changepassword():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    password = "Test123456"
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    response = client.put("/password", headers={
+            "Authorization": "bearer" +" "+"test" ,
+        },json={
+             "old_password":password,
+             "new_password":"Test1234567"
+        })
+    assert response.status_code == 401 or response.status_code == 403
 
-        
+def test_sucsess_changepassword_and_login():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    password = "Test123456"
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    response = client.put("/password", headers={
+            "Authorization": "bearer" +" "+token ,
+        },json={
+             "old_password":password,
+             "new_password":"Test1234567"
+        })
+    assert response.status_code == 200
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test1234567"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+def test_sucsess_changepassword_oldpass():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    password = "Test123456"
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    response = client.put("/password", headers={
+            "Authorization": "bearer" +" "+token ,
+        },json={
+             "old_password":password,
+             "new_password":"Test1234567"
+        })
+    assert response.status_code == 200
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 401
+
+def test_short_changepassword():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    password = "Test123456"
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    response = client.put("/password", headers={
+            "Authorization": "bearer" +" "+token ,
+        },json={
+             "old_password":password,
+             "new_password":"T"
+        })
+    assert response.status_code == 400
 
 
-
+def test_wrongpass_changepassword():
+    response = client.post("/register", json={
+        "username": "TEST",
+        "email": "test@example.com",
+        "password": "Test123456"
+    })
+    password = "Test123456"
+    assert response.status_code == 201
+    response = client.post("/login", json={
+        "username": "TEST",
+        "password": "Test123456"
+    })
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    response = client.put("/password", headers={
+            "Authorization": "bearer" +" "+token ,
+        },json={
+             "old_password":"Test1234567",
+             "new_password":"Test1234567"
+        })
+    assert response.status_code == 401
