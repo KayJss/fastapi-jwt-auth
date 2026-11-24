@@ -4,3 +4,4 @@ __pycache__
 .vscode
 users.db
 .pytest_cache
+pytest_temp_run
