@@ -1,7 +1,7 @@
 from pathlib import Path
 import sqlite3
 import bcrypt # pyright: ignore[reportMissingImports]
-from fastapi import FastAPI, HTTPException # type: ignore
+from fastapi import FastAPI, HTTPException,Depends # type: ignore
 from pydantic import BaseModel,EmailStr # type: ignore # pyright: ignore[reportUndefinedVariable]
 from datetime import date, datetime, time, timedelta,UTC
 import jwt # pyright: ignore[reportMissingImports]
@@ -12,6 +12,8 @@ from dotenv import load_dotenv # pyright: ignore[reportMissingImports]
 load_dotenv()
 
 app = FastAPI()
+
+security = HTTPBearer()
 class RegisterRequest(BaseModel):
     username: str
     email: EmailStr
@@ -19,6 +21,9 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password:str
+class ChangePasswordRequest(BaseModel):
+    old_password:str
+    new_password:str
 
 def get_token(id, expires=600):
     payload = {
@@ -132,4 +137,22 @@ def login(user:LoginRequest):
         
     finally:
         baglanti.close()
+@app.get("/me",status_code=200) # pyright: ignore[reportUndefinedVariable]
+def me(token:HTTPAuthorizationCredentials=Depends(security)):
+    baglanti = baglan()
+    try:
+        cursor = baglanti.cursor()
+        sonuc = verify_token(token.credentials)
+        if sonuc is None:
+            raise HTTPException(status_code=401, detail="Token geçersiz veya oturum süresi dolmuş")
+        cursor.execute("SELECT username,email,created_at,id FROM users WHERE id = ?",(sonuc,))
+        sonuc2 = cursor.fetchone()
+        if sonuc2 is None:
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+        else:
+            return {"id":sonuc2[3],"username":sonuc2[0],"email":sonuc2[1],"created_at":sonuc2[2]}
+
+
     
+    finally:
+        baglanti.close()
